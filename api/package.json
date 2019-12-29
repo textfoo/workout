@@ -1,0 +1,23 @@
+{
+  "name": "workout_api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./app/index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "jest --watchAll",
+    "dev" : "nodemon ./app/index.js"
+  },
+  "author": "textfoo",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1",
+    "winston": "^3.2.1"
+  },
+  "devDependencies": {
+    "jest": "^24.9.0",
+    "nodemon": "^2.0.2"
+  }
+}
