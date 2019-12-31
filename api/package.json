@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "jest --watchAll",
-    "dev" : "nodemon ./app/index.js"
+    "dev": "nodemon ./app/index.js"
   },
   "author": "textfoo",
   "license": "ISC",

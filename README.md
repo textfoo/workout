@@ -10,4 +10,10 @@ a workout tracking api
 openssl req -nodes -new -x509 -keyout server.key -out server.cert
 ```
 
+## project docs
+
+### api
+
+### backend
+
 ## end
