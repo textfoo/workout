@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const axios = require('axios'); 
+const { Client } = require('pg'); 
 const jsdom = require('jsdom'); 
 const { JSDOM } = jsdom;
 const logger = require('../../../api/utility/logger');
@@ -9,6 +10,9 @@ const promisify = require('util').promisify;
 const timeout = promisify(setTimeout); 
 const writeAsync = promisify(fs.writeFile); 
 const readAsync = promisify(fs.readFile); 
+
+const { pg } = require('../../config/db.json');
+const client = new Client(pg); 
 
 const base = 'https://www.bodybuilding.com/exercises/finder/';
 
@@ -20,63 +24,93 @@ const base = 'https://www.bodybuilding.com/exercises/finder/';
 module.exports.exerciseFinderCache = async () => {
     try {
         logger.info(`datascrapers | bodybuilding | exerciseFinderCache | starting cache`);
-        await this.parseBodyBuildingExerciseDOM('');
-        //uncomment to go live
-        /*
+
+        await client.connect(); 
         for(muscle = 1; muscle <= 15; muscle++) {
             var finished = false; 
-            let finder = 1; 
+            let finder = 1;
+
             while(!finished) {
                 let url = `${base}${finder}/?muscleid=${muscle}`;
                 logger.info(`requesting : ${url}`);
                 let bbReq = await axios(url); 
                 let reqResults = await this.parseBodyBuildingExerciseDOM(bbReq.data); 
+                logger.info(`results : ${JSON.stringify(reqResults)}`);
+                if(reqResults.length !== 0) {
+                    await this.insertExerciseResults(reqResults); 
+                    finder ++;
+                }
 
-                finder ++;
-                await timeout(3000);
-                //figure out how to get a signal back to tell if the scraper is finished
-                if(finder >= 11) {
+                if(reqResults.length === 0) {
                     finished = true;
                 }
+
+                await timeout(6000);
             }
         }
-        */
+        await client.end();
+    }catch(error) {
+        logger.error(`datascrapers | bodybuilding | exerciseFinderCache | error : ${error}`);
+    }
+}
+
+module.exports.insertExerciseResults = async(results) => {
+    try { 
+        let statement = 'insert into exercises ( name, muscle, equipment ) values ';
+        for(var i = 0; i < results.length; i++) {
+            statement += `( '${results[i].name.replace('\'', '')}', '${results[i].muscle.replace('\'', '')}', '${results[i].equipment.replace('\'', '')}' ),`; 
+        }
+        statement = statement.slice(0, statement.length -1); 
+        statement += ';';
+        logger.debug(`insert statement : ${statement}`);
+        await client.query(statement); 
+    }catch(error) {
+        logger.error(`datascrapers | bodybuilding | insertExerciseResults | error : ${error}`);
+    }
+}
+
+module.exports.parseBodyBuildingExerciseDOM =  async(data) => {
+    try {
+
+        logger.debug(`| parseBodyBuildingExerciseDOM | data.length : ${data.length}`);
+        if(data.length != 0) {
+            const dom = new JSDOM(data); 
+            results = await this.parseDOM(dom);
+            logger.debug(`results : ${JSON.stringify(results)}`);
+        }
+        //cache dom for analysis later... 
+        await writeAsync('../cache/bb_dom.html',data);
+        return results;
 
     }catch(error) {
         logger.error(`datascrapers | bodybuilding | exerciseFinderCache | error : ${error}`);
     }
 }
 
-module.exports.parseBodyBuildingExerciseDOM =  async(data) => {
+module.exports.parseDOM = (dom) => {
     try {
-        let results = []; 
-        logger.debug(`| parseBodyBuildingExerciseDOM | data.length : ${data.length}`);
-        //easy entry point for debugging and writing the parser
-        if(data.length == 0) {
-            logger.debug(`data file unspecified - reading from cache`); 
-            data = await readAsync('../cache/bb_dom.html', 'utf8'); 
-            logger.debug(`cache length : ${data.length}`);
-            const dom = new JSDOM(data); 
-            let workouts = dom.window.document.querySelectorAll('.ExResult-row');
-            console.log(`workouts length : ${workouts.length}`);
-            
-            for(var i = 0; i < workouts.length; i++){ 
-                let name = workouts[i].querySelector('.ExHeading').querySelector('a');
-                let targeted = workouts[i].querySelector('.ExResult-muscleTargeted').querySelector('a');
-                let equipment = workouts[i].querySelector('.ExResult-equipmentType').querySelector('a');
-                //logger.debug(`${heading.innerHTML}|${targeted.innerHTML}|${equipment.innerHTML}`);
-                results.push({
-                    name : name.innerHTML.trimLeft().trimRight(), 
-                    muscle : targeted.innerHTML.trimLeft().trimRight(), 
-                    equipment : equipment.innerHTML.trimLeft().trimRight()
-                });
+        return new Promise((resolve, reject) => {
+            try {
+                let results = []; 
+                let workouts = dom.window.document.querySelectorAll('.ExResult-row');        
+                for(var i = 0; i < workouts.length; i++){ 
+                    let name = workouts[i].querySelector('.ExHeading').querySelector('a');
+                    let targeted = workouts[i].querySelector('.ExResult-muscleTargeted').querySelector('a');
+                    let equipment = workouts[i].querySelector('.ExResult-equipmentType').querySelector('a');
+                    logger.debug(`  | parseDOM | ${name.innerHTML.trimLeft().trimRight()}|${targeted.innerHTML.trimLeft().trimRight()}|${equipment.innerHTML.trimLeft().trimRight()}`);
+                    results.push({
+                        name : name.innerHTML.trimLeft().trimRight(), 
+                        muscle : targeted.innerHTML.trimLeft().trimRight(), 
+                        equipment : equipment.innerHTML.trimLeft().trimRight()
+                    });
+                }
+                logger.debug(` | parseDOM | results.length : ${results.length}`);
+                resolve(results); 
+            }catch(error) {
+                reject(error);
             }
-            logger.debug(`results : ${JSON.stringify(results)}`);
-        }
-        //cache dom for analysis later... 
-        await writeAsync('../cache/bb_dom.html',data);
-
+        });
     }catch(error) {
-        logger.error(`datascrapers | bodybuilding | exerciseFinderCache | error : ${error}`);
+        logger.error(`datascrapers | bodybuilding | parseDOM | error : ${error}`);
     }
 }

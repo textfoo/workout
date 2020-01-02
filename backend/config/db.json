@@ -1,0 +1,9 @@
+{
+    "pg" : { 
+        "user" : "postgres",
+        "database" : "workout_app",
+        "host" : "localhost",
+        "password" : "textfoo", 
+        "port" : 35432
+    }
+}
