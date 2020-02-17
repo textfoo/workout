@@ -16,11 +16,8 @@ module.exports = async function(req, res, next) {
         };
         logger.info(`incoming request : 
         ${JSON.stringify(log)}`);
-        
-        
     }catch(error) {
-        logger.error(`middleware | log | error : ${error}`);
+        logger.error(`middleware | request-log | error : ${error}`);
     }
     next(); 
 }
-

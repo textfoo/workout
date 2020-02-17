@@ -1,5 +1,6 @@
 const express = require('express'); 
 const router = express.Router(); 
+const logger = require('../../utility/logger');
 
 router.get('/api/healthcheck', async(req, res) => {
     try {
