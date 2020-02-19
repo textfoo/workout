@@ -7,6 +7,7 @@ a workout tracking api
 ### set-up
 
 ```shell
+cd /api/
 openssl req -nodes -new -x509 -keyout server.key -out server.cert
 ```
 
